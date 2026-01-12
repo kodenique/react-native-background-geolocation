@@ -1,6 +1,6 @@
 {
   "name": "@mauron85/react-native-background-geolocation",
-  "version": "0.6.3",
+  "version": "1.0.0",
   "description": "optimized background location tracking",
   "main": "./index.js",
   "types": "./index.d.ts",
@@ -36,6 +36,6 @@
     "plist": "^3.0.1"
   },
   "peerDependencies": {
-    "react-native": ">=0.60.5"
+    "react-native": ">=0.72.0"
   }
 }

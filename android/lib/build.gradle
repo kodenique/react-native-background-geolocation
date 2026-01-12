@@ -1,90 +1,89 @@
-// Notice: Oreo builds are disabled by default until all problems are resolved!!!
-//
-// For Oreo compatibility we are forced to use supportLibVersion >= 26.1.0
-// Unfortunately Android stopped supporting downloading libraries through the SDK Manager,
-// @see https://developer.android.com/topic/libraries/support-library/setup.html
-//
-// You can enable oreo by adding following into root build.gradle:
-//
-// allprojects {
-//   repositories {
-//     maven { url 'https://maven.google.com' }
-//   }
-// }
-//
-// ext {
-//   compileSdkVersion = 26
-//   targetSdkVersion = 26
-//   buildToolsVersion = "26.0.2"
-//   supportLibVersion = "26.1.0"
-//   googlePlayServicesVersion = "11.8.0"
-// }
-//
-//
-// If you don't like this please ask react guys nicely to add google maven repo into
-// their templates.
-
 apply plugin: 'com.android.library'
 
-apply from: '../common/VERSIONS.gradle'
-def hasApp = findProject(':app') != null
+def safeExtGet(prop, fallback) {
+    rootProject.ext.has(prop) ? rootProject.ext.get(prop) : fallback
+}
 
-// https://hackernoon.com/android-how-to-add-gradle-dependencies-using-foreach-c4cbcc070458
-def projDependencies = [
-    [configuration: "implementation", dependency: libs.slf4j],
-    [configuration: "implementation", dependency: libs.reactNative],
-    [configuration: "testImplementation", dependency: testLibs.testRunner],
-    [configuration: "testImplementation", dependency: testLibs.testRules],
-    [configuration: "testImplementation", dependency: testLibs.junit],
-    [configuration: "testImplementation", dependency: testLibs.powermockMockito],
-    [configuration: "testImplementation", dependency: testLibs.powermockjUnit],
-    [configuration: "testImplementation", dependency: testLibs.powermockClassloading],
-    [configuration: "testImplementation", dependency: testLibs.mockitoCore],
-    [configuration: "testImplementation", dependency: testLibs.festAssertCore],
-    [configuration: "testImplementation", dependency: testLibs.robolectric],
-    [configuration: "androidTestImplementation", dependency: testLibs.testRunner],
-    [configuration: "androidTestImplementation", dependency: testLibs.testRules],
-]
-
-repositories {
-    // Google dependencies are now hosted at Maven
-    // unfortunately this is ignored when installing as react-native plugin
-    maven {
-        url 'https://maven.google.com'
-    }
-    jcenter()
+def reactNativeArchitectures() {
+    def value = project.getProperties().get("reactNativeArchitectures")
+    return value ? value.split(",") : ["armeabi-v7a", "x86", "x86_64", "arm64-v8a"]
 }
 
 android {
-    compileSdkVersion project.ext.getCompileSdkVersion()
-    buildToolsVersion project.ext.getBuildToolsVersion()
-    if (hasApp) {
-        evaluationDependsOn(':app')
-    }
-
-    // Tip: https://stackoverflow.com/questions/39987669/renamingdelegatingcontext-is-deprecated-how-do-we-test-sqlite-db-now/52170737#52170737
-    // Gradle automatically adds 'android.test.runner' as a dependency.
-    useLibrary 'android.test.runner'
-    useLibrary 'android.test.base'
-    useLibrary 'android.test.mock'
+    namespace "com.marianhello.bgloc.react"
+    compileSdk safeExtGet('compileSdkVersion', 36)
 
     defaultConfig {
-        testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
-        minSdkVersion project.ext.getMinSdkVersion()
-        targetSdkVersion project.ext.getTargetSdkVersion()
-        versionCode 1 // intentionally not updating version as we're not uploading to any java repository
-        versionName "1.0"
+        minSdk safeExtGet('minSdkVersion', 24)
+        targetSdk safeExtGet('targetSdkVersion', 36)
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        versionCode 1
+        versionName "1.0.0"
+
+        ndk {
+            abiFilters(*reactNativeArchitectures())
+        }
+
+        // Resource values for sync adapter
+        def accountPrefix = rootProject.hasProperty('applicationId') ? rootProject.applicationId + '.mauron85.bgloc' : 'com.marianhello.app.mauron85.bgloc'
+        resValue "string", "mauron85_bgloc_account_name", 'Locations'
+        resValue "string", "mauron85_bgloc_account_type", accountPrefix + '.account'
+        resValue "string", "mauron85_bgloc_content_authority", accountPrefix + '.provider'
     }
 
-    lintOptions {
+    buildTypes {
+        release {
+            minifyEnabled false
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    // Include common sources directly
+    sourceSets {
+        main {
+            java.srcDirs += ['../common/src/main/java']
+            res.srcDirs += ['../common/src/main/res']
+        }
+    }
+
+    lint {
         abortOnError false
     }
 }
 
-dependencies {
-    implementation project(path: ':@mauron85_react-native-background-geolocation-common')
+repositories {
+    google()
+    mavenCentral()
+    maven { url 'https://jitpack.io' }
+}
 
-    projDependencies.each {
-        add(it.configuration, it.dependency)
-    }
+dependencies {
+    implementation "com.facebook.react:react-android:+"
+
+    // AndroidX dependencies
+    implementation 'androidx.core:core-ktx:1.13.1'
+    implementation 'androidx.appcompat:appcompat:1.7.0'
+    implementation 'androidx.annotation:annotation:1.8.0'
+    implementation 'androidx.localbroadcastmanager:localbroadcastmanager:1.1.0'
+
+    // Google Play Services Location
+    implementation 'com.google.android.gms:play-services-location:21.3.0'
+
+    // Promise library (from JitPack)
+    implementation 'com.github.jparkie:promise:1.0.3'
+
+    // Logging
+    implementation 'org.slf4j:slf4j-api:2.0.13'
+    implementation 'com.github.tony19:logback-android:3.0.0'
+
+    testImplementation 'junit:junit:4.13.2'
+    testImplementation 'org.mockito:mockito-core:5.12.0'
+    testImplementation 'org.robolectric:robolectric:4.12.2'
+    androidTestImplementation 'androidx.test:runner:1.6.1'
+    androidTestImplementation 'androidx.test:rules:1.6.1'
+    androidTestImplementation 'androidx.test.ext:junit:1.2.1'
 }

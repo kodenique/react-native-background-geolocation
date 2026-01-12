@@ -17,12 +17,11 @@
        specific language governing permissions and limitations
        under the License.
 -->
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.marianhello.bgloc.react" android:versionName="1.0" android:versionCode="1">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application>
         <service
             android:name="com.marianhello.bgloc.sync.SyncService"
-            android:exported="true"
+            android:exported="false"
             android:process=":sync">
             <intent-filter>
                 <action android:name="android.content.SyncAdapter"/>
@@ -31,7 +30,8 @@
                 android:resource="@xml/syncadapter"/>
         </service>
         <service
-            android:name="com.marianhello.bgloc.sync.AuthenticatorService">
+            android:name="com.marianhello.bgloc.sync.AuthenticatorService"
+            android:exported="false">
             <intent-filter>
                 <action android:name="android.accounts.AccountAuthenticator"/>
             </intent-filter>
@@ -44,26 +44,44 @@
             android:authorities="@string/mauron85_bgloc_content_authority"
             android:exported="false"
             android:syncable="true"/>
-        <service android:enabled="true" android:exported="false" android:name="com.marianhello.bgloc.service.LocationServiceImpl" />
-        <service android:enabled="true" android:exported="false" android:name="com.marianhello.bgloc.react.headless.HeadlessService" />
-        <receiver android:enabled="true" android:exported="true" android:name="com.marianhello.bgloc.BootCompletedReceiver">
+        <service
+            android:name="com.marianhello.bgloc.service.LocationServiceImpl"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="location" />
+        <service
+            android:name="com.marianhello.bgloc.react.headless.HeadlessService"
+            android:enabled="true"
+            android:exported="false" />
+        <receiver
+            android:name="com.marianhello.bgloc.BootCompletedReceiver"
+            android:enabled="true"
+            android:exported="false">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
             </intent-filter>
         </receiver>
     </application>
 
-    <uses-permission android:name="android.hardware.location" />
+    <!-- Hardware features -->
+    <uses-feature android:name="android.hardware.location" android:required="false"/>
+    <uses-feature android:name="android.hardware.location.gps" android:required="false"/>
+    <uses-feature android:name="android.hardware.location.network" android:required="false"/>
+
+    <!-- Permissions -->
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_LOCATION_EXTRA_COMMANDS" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="com.google.android.gms.permission.ACTIVITY_RECOGNITION" />
+    <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.READ_SYNC_SETTINGS"/>
     <uses-permission android:name="android.permission.WRITE_SYNC_SETTINGS"/>
-    <uses-permission android:name="android.permission.AUTHENTICATE_ACCOUNTS"/>
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
 </manifest>

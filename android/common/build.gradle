@@ -1,0 +1,66 @@
+apply plugin: 'com.android.library'
+
+apply from: './VERSIONS.gradle'
+def accountPrefix = getAccountPrefix()
+def resourcePrefix = getResourcePrefix()
+
+def projDependencies = [
+    [configuration: "androidTestImplementation", dependency: androidLibs.testRunner],
+    [configuration: "androidTestImplementation", dependency: androidLibs.testRules],
+    [configuration: "androidTestImplementation", dependency: androidLibs.testExtJunit],
+    [configuration: "testImplementation", dependency: testLibs.testRunner],
+    [configuration: "testImplementation", dependency: testLibs.testRules],
+    [configuration: "testImplementation", dependency: testLibs.junit],
+    [configuration: "testImplementation", dependency: testLibs.json],
+    [configuration: "testImplementation", dependency: testLibs.robolectric],
+    [configuration: "testImplementation", dependency: testLibs.mockitoCore],
+    [configuration: "implementation", dependency: androidLibs.playServicesLocation],
+    [configuration: "implementation", dependency: androidLibs.coreKtx],
+    [configuration: "implementation", dependency: androidLibs.appcompat],
+    [configuration: "implementation", dependency: libs.logback],
+    [configuration: "implementation", dependency: libs.slf4j],
+]
+
+android {
+    namespace "com.marianhello.bgloc"
+    compileSdk project.ext.getCompileSdkVersion()
+
+    defaultConfig {
+        resValue "string", resourcePrefix + "account_name", 'Locations'
+        resValue "string", resourcePrefix + "account_type", accountPrefix + '.account'
+        resValue "string", resourcePrefix + "content_authority", accountPrefix + '.provider'
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        minSdk project.ext.getMinSdkVersion()
+        targetSdk project.ext.getTargetSdkVersion()
+        versionCode 1
+        versionName "1.0"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    testOptions {
+        unitTests.returnDefaultValues = true
+    }
+
+    lint {
+        abortOnError false
+    }
+}
+
+dependencies {
+    projDependencies.each {
+        add(it.configuration, it.dependency)
+    }
+
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+}
