@@ -42,11 +42,10 @@ android {
         targetCompatibility JavaVersion.VERSION_17
     }
 
-    // Include common sources directly
+    // Include common sources directly (Java only, resources are copied to avoid duplicates)
     sourceSets {
         main {
             java.srcDirs += ['../common/src/main/java']
-            res.srcDirs += ['../common/src/main/res']
         }
     }
 
