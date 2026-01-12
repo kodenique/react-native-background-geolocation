@@ -22,3 +22,6 @@ build
 
 # CircleCI
 .circleci
+
+# Exclude common module resources (included in lib module instead)
+android/common/src/main/res/
