@@ -403,18 +403,20 @@ RCT_EXPORT_METHOD(forceSync:(RCTResponseSenderBlock)success failure:(RCTResponse
 -(void) onFinishLaunching:(NSNotification *)notification
 {
     NSDictionary *dict = [notification userInfo];
-    
+
     MAURConfig *config = [facade getConfig];
-    if (config.isDebugging)
-    {
-        if (@available(iOS 10, *))
-        {
-            UNUserNotificationCenter *center = [UNUserNotificationCenter currentNotificationCenter];
-            prevNotificationDelegate = center.delegate;
-            center.delegate = self;
-        }
-    }
-    
+    // DISABLED: Notification delegate hijacking causes conflicts with Firebase/other notification handlers
+    // Debug notifications use UILocalNotification (deprecated) instead
+    // if (config.isDebugging)
+    // {
+    //     if (@available(iOS 10, *))
+    //     {
+    //         UNUserNotificationCenter *center = [UNUserNotificationCenter currentNotificationCenter];
+    //         prevNotificationDelegate = center.delegate;
+    //         center.delegate = self;
+    //     }
+    // }
+
     if ([dict objectForKey:UIApplicationLaunchOptionsLocationKey]) {
         RCTLogInfo(@"RCTBackgroundGeolocation started by system on location event.");
         if (![config stopOnTerminate]) {
@@ -428,18 +430,10 @@ RCT_EXPORT_METHOD(forceSync:(RCTResponseSenderBlock)success failure:(RCTResponse
        willPresentNotification:(UNNotification *)notification
          withCompletionHandler:(void (^)(UNNotificationPresentationOptions options))completionHandler
 {
-    if (prevNotificationDelegate && [prevNotificationDelegate respondsToSelector:@selector(userNotificationCenter:willPresentNotification:withCompletionHandler:)])
-    {
-        // Give other delegates (like FCM) the chance to process this notification
-        
-        [prevNotificationDelegate userNotificationCenter:center willPresentNotification:notification withCompletionHandler:^(UNNotificationPresentationOptions options) {
-            completionHandler(UNNotificationPresentationOptionAlert);
-        }];
-    }
-    else
-    {
-        completionHandler(UNNotificationPresentationOptionAlert);
-    }
+    // This method should not be called since we no longer hijack the notification center delegate
+    // If it is called for some reason, just show the notification with default options
+    RCTLogWarn(@"RCTBackgroundGeolocation: userNotificationCenter called unexpectedly");
+    completionHandler(UNNotificationPresentationOptionAlert);
 }
 
 -(void) onAppTerminate:(NSNotification *)notification
