@@ -428,16 +428,17 @@ RCT_EXPORT_METHOD(forceSync:(RCTResponseSenderBlock)success failure:(RCTResponse
        willPresentNotification:(UNNotification *)notification
          withCompletionHandler:(void (^)(UNNotificationPresentationOptions options))completionHandler
 {
-    if (prevNotificationDelegate && [prevNotificationDelegate respondsToSelector:@selector(userNotificationCenter:willPresentNotification:withCompletionHandler:)])
+    // Prevent circular delegation by checking if we're delegating to ourselves
+    if (prevNotificationDelegate &&
+        prevNotificationDelegate != self &&
+        [prevNotificationDelegate respondsToSelector:@selector(userNotificationCenter:willPresentNotification:withCompletionHandler:)])
     {
-        // Give other delegates (like FCM) the chance to process this notification
-        
-        [prevNotificationDelegate userNotificationCenter:center willPresentNotification:notification withCompletionHandler:^(UNNotificationPresentationOptions options) {
-            completionHandler(UNNotificationPresentationOptionAlert);
-        }];
+        // Forward to the previous delegate and respect its presentation options
+        [prevNotificationDelegate userNotificationCenter:center willPresentNotification:notification withCompletionHandler:completionHandler];
     }
     else
     {
+        // No previous delegate or it's ourselves, handle directly
         completionHandler(UNNotificationPresentationOptionAlert);
     }
 }
