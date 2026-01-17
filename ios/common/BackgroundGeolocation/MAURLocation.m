@@ -21,6 +21,16 @@ enum {
 
 @implementation MAURLocationMapper
 MAURLocation* _location;
+NSMutableSet* _visitedObjects;
+
+- (id) init
+{
+    self = [super init];
+    if (self) {
+        _visitedObjects = [[NSMutableSet alloc] init];
+    }
+    return self;
+}
 
 - (id) mapValue:(id)value
 {
@@ -28,8 +38,16 @@ MAURLocation* _location;
         id locationValue = [_location getValueForKey:value];
         return locationValue != nil ? locationValue : value;
     } else if ([value isKindOfClass:[NSDictionary class]]) {
+        // Prevent infinite recursion by detecting circular references
+        if ([_visitedObjects containsObject:value]) {
+            return @{}; // Return empty dict for circular references
+        }
         return [self withDictionary:value];
     } else if ([value isKindOfClass:[NSArray class]]) {
+        // Prevent infinite recursion by detecting circular references
+        if ([_visitedObjects containsObject:value]) {
+            return @[]; // Return empty array for circular references
+        }
         return [self withArray:value];
     }
 
@@ -38,6 +56,9 @@ MAURLocation* _location;
 
 - (NSDictionary*) withDictionary:(NSDictionary*)values
 {
+    // Track this dictionary to prevent circular references
+    [_visitedObjects addObject:values];
+
     NSMutableDictionary *dict = [NSMutableDictionary dictionaryWithCapacity:values.count];
 
     for (id key in values) {
@@ -45,16 +66,25 @@ MAURLocation* _location;
         [dict setObject:[self mapValue:value] forKey:key];
     }
 
+    // Remove from visited set after processing
+    [_visitedObjects removeObject:values];
+
     return dict;
 }
 
 - (NSArray*) withArray:(NSArray*)values
 {
+    // Track this array to prevent circular references
+    [_visitedObjects addObject:values];
+
     NSMutableArray *locationArray = [[NSMutableArray alloc] initWithCapacity:values.count];
 
     for (id value in values) {
         [locationArray addObject:[self mapValue:value]];
     }
+
+    // Remove from visited set after processing
+    [_visitedObjects removeObject:values];
 
     return locationArray;
 }
