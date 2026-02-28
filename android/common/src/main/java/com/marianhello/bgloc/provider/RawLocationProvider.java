@@ -1,21 +1,24 @@
 package com.marianhello.bgloc.provider;
 
 import android.content.Context;
-import android.location.Criteria;
 import android.location.Location;
-import android.location.LocationListener;
-import android.location.LocationManager;
-import android.os.Bundle;
+import android.os.Looper;
 
+import com.google.android.gms.location.FusedLocationProviderClient;
+import com.google.android.gms.location.LocationCallback;
+import com.google.android.gms.location.LocationRequest;
+import com.google.android.gms.location.LocationResult;
+import com.google.android.gms.location.LocationServices;
+import com.google.android.gms.location.Priority;
 import com.marianhello.bgloc.Config;
-import com.marianhello.logging.LoggerManager;
 
 /**
- * Created by finch on 7.11.2017.
+ * Raw location provider using FusedLocationProviderClient.
+ * Replaces legacy LocationManager which is throttled in background on Android 8+.
  */
-
-public class RawLocationProvider extends AbstractLocationProvider implements LocationListener {
-    private LocationManager locationManager;
+public class RawLocationProvider extends AbstractLocationProvider {
+    private FusedLocationProviderClient fusedLocationClient;
+    private LocationCallback locationCallback;
     private boolean isStarted = false;
 
     public RawLocationProvider(Context context) {
@@ -26,8 +29,19 @@ public class RawLocationProvider extends AbstractLocationProvider implements Loc
     @Override
     public void onCreate() {
         super.onCreate();
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(mContext);
 
-        locationManager = (LocationManager) mContext.getSystemService(Context.LOCATION_SERVICE);
+        locationCallback = new LocationCallback() {
+            @Override
+            public void onLocationResult(LocationResult locationResult) {
+                if (locationResult == null) return;
+                for (Location location : locationResult.getLocations()) {
+                    logger.debug("Location change: {}", location.toString());
+                    showDebugToast("acy:" + location.getAccuracy() + ",v:" + location.getSpeed());
+                    handleLocation(location);
+                }
+            }
+        };
     }
 
     @Override
@@ -36,17 +50,15 @@ public class RawLocationProvider extends AbstractLocationProvider implements Loc
             return;
         }
 
-        Criteria criteria = new Criteria();
-        criteria.setAltitudeRequired(false);
-        criteria.setBearingRequired(false);
-        criteria.setSpeedRequired(true);
-        criteria.setCostAllowed(true);
-        criteria.setAccuracy(Criteria.ACCURACY_FINE);
-        criteria.setHorizontalAccuracy(translateDesiredAccuracy(mConfig.getDesiredAccuracy()));
-        criteria.setPowerRequirement(Criteria.POWER_HIGH);
+        int priority = translateDesiredAccuracy(mConfig.getDesiredAccuracy());
+
+        LocationRequest locationRequest = new LocationRequest.Builder(priority, mConfig.getInterval())
+                .setMinUpdateIntervalMillis(mConfig.getFastestInterval())
+                .setMinUpdateDistanceMeters(mConfig.getDistanceFilter())
+                .build();
 
         try {
-            locationManager.requestLocationUpdates(locationManager.getBestProvider(criteria, true), mConfig.getInterval(), mConfig.getDistanceFilter(), this);
+            fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, Looper.getMainLooper());
             isStarted = true;
         } catch (SecurityException e) {
             logger.error("Security exception: {}", e.getMessage());
@@ -59,14 +71,8 @@ public class RawLocationProvider extends AbstractLocationProvider implements Loc
         if (!isStarted) {
             return;
         }
-        try {
-            locationManager.removeUpdates(this);
-        } catch (SecurityException e) {
-            logger.error("Security exception: {}", e.getMessage());
-            this.handleSecurityException(e);
-        } finally {
-            isStarted = false;
-        }
+        fusedLocationClient.removeLocationUpdates(locationCallback);
+        isStarted = false;
     }
 
     @Override
@@ -83,49 +89,22 @@ public class RawLocationProvider extends AbstractLocationProvider implements Loc
         return isStarted;
     }
 
-    @Override
-    public void onLocationChanged(Location location) {
-        logger.debug("Location change: {}", location.toString());
-
-        showDebugToast("acy:" + location.getAccuracy() + ",v:" + location.getSpeed());
-        handleLocation(location);
-    }
-
-    @Override
-    public void onStatusChanged(String provider, int status, Bundle bundle) {
-        logger.debug("Provider {} status changed: {}", provider, status);
-    }
-
-    @Override
-    public void onProviderEnabled(String provider) {
-        logger.debug("Provider {} was enabled", provider);
-    }
-
-    @Override
-    public void onProviderDisabled(String provider) {
-        logger.debug("Provider {} was disabled", provider);
-    }
-
     /**
-     * Translates a number representing desired accuracy of Geolocation system from set [0, 10, 100, 1000].
+     * Translates desired accuracy to FusedLocationProvider priority.
      * 0:  most aggressive, most accurate, worst battery drain
      * 1000:  least aggressive, least accurate, best for battery.
      */
-    private Integer translateDesiredAccuracy(Integer accuracy) {
+    private int translateDesiredAccuracy(Integer accuracy) {
+        if (accuracy >= 10000) {
+            return Priority.PRIORITY_PASSIVE;
+        }
         if (accuracy >= 1000) {
-            return Criteria.ACCURACY_LOW;
+            return Priority.PRIORITY_LOW_POWER;
         }
         if (accuracy >= 100) {
-            return Criteria.ACCURACY_MEDIUM;
+            return Priority.PRIORITY_BALANCED_POWER_ACCURACY;
         }
-        if (accuracy >= 10) {
-            return Criteria.ACCURACY_HIGH;
-        }
-        if (accuracy >= 0) {
-            return Criteria.ACCURACY_HIGH;
-        }
-
-        return Criteria.ACCURACY_MEDIUM;
+        return Priority.PRIORITY_HIGH_ACCURACY;
     }
 
     @Override
